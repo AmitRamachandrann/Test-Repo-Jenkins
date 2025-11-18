@@ -23,7 +23,6 @@ pipeline {
                         echo "File exists, registering scan..."
                         registerSecurityScan(
                             artifacts: "anchore-findings.json",
-                            format: "JSON",
                             scanner: "Anchore",
                             archive: false
                         )
