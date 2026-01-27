@@ -101,7 +101,7 @@ spec:
                 container('python') {
                     catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
                         withCredentials([
-                            string(credentialsId: 'snyk-token', variable: 'SNYK_TOKEN'),
+                            string(credentialsId: 'snyk-api-token', variable: 'SNYK_TOKEN'),
                             string(credentialsId: 'snyk-org', variable: 'SNYK_ORG')
                         ]) {
                             sh '''
