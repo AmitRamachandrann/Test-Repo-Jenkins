@@ -180,10 +180,10 @@ spec:
             // Archive coverage reports
             archiveArtifacts artifacts: 'coverage.md,coverage-html/**', allowEmptyArchive: false, fingerprint: true
 
-            // Archive Snyk security scan results
-            archiveArtifacts artifacts: '**/*.json,**/*.sarif', allowEmptyArchive: true, fingerprint: true
+            // Archive Snyk JSON results
+            archiveArtifacts artifacts: '**/*.json', allowEmptyArchive: true, fingerprint: true
 
-            // Register security scans with CloudBees Unify
+            // Register security scans with CloudBees Unify (will archive SARIF files)
             script {
                 if (fileExists('snyk-sast-results.sarif')) {
                     registerSecurityScan(
@@ -191,13 +191,20 @@ spec:
                         format: 'sarif',
                         archive: true
                     )
+                    echo "✓ Registered SAST results with CloudBees Unify"
+                } else {
+                    echo "⚠ snyk-sast-results.sarif not found, skipping registration"
                 }
+                
                 if (fileExists('snyk-sca-results.sarif')) {
                     registerSecurityScan(
                         artifacts: 'snyk-sca-results.sarif',
                         format: 'sarif',
                         archive: true
                     )
+                    echo "✓ Registered SCA results with CloudBees Unify"
+                } else {
+                    echo "⚠ snyk-sca-results.sarif not found, skipping registration"
                 }
             }
         }
