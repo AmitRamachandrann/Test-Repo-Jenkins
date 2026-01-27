@@ -102,11 +102,11 @@ spec:
                     catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
                         withCredentials([
                             string(credentialsId: 'snyk-api-secret', variable: 'SNYK_TOKEN'),
-                            //string(credentialsId: 'snyk-org', variable: 'SNYK_ORG')
+                            string(credentialsId: 'snyk-org', variable: 'SNYK_ORG')
                         ]) {
                             sh '''
                                 echo "=== Installing Snyk CLI ==="
-                                curl -Lo /usr/local/bin/snyk https://downloads.snyk.io/cli/stable/snyk-linux
+                                curl -Lo /usr/local/bin/snyk https://static.snyk.io/cli/latest/snyk-linux
                                 chmod +x /usr/local/bin/snyk
 
                                 echo "=== Authenticating with Snyk ==="
@@ -114,6 +114,7 @@ spec:
 
                                 echo "=== Running Snyk Code (SAST) scan ==="
                                 snyk code test \
+                                    --org=${SNYK_ORG} \
                                     --project-name=TEST_CX_NAME_pyexample3 \
                                     --severity-threshold=medium \
                                     --remote-repo-url=https://github.com/ldorg/pyexample3 \
@@ -141,7 +142,7 @@ spec:
                     catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
                         withCredentials([
                             string(credentialsId: 'snyk-api-secret', variable: 'SNYK_TOKEN'),
-                            //string(credentialsId: 'snyk-org', variable: 'SNYK_ORG')
+                            string(credentialsId: 'snyk-org', variable: 'SNYK_ORG')
                         ]) {
                             sh '''
                                 echo "=== Re-authenticating with Snyk ==="
@@ -153,6 +154,7 @@ spec:
 
                                 echo "=== Running Snyk Open Source (SCA) scan ==="
                                 snyk test \
+                                    --org=${SNYK_ORG} \
                                     --project-name=TEST_CX_NAME_pyexample3 \
                                     --severity-threshold=medium \
                                     --remote-repo-url=https://github.com/ldorg/pyexample3 \
