@@ -115,7 +115,6 @@ spec:
                                 echo "=== Running Snyk Code (SAST) scan ==="
                                 snyk code test \
                                     --org=${SNYK_ORG} \
-                                    --project-name=TEST_CX_NAME_pyexample3 \
                                     --severity-threshold=medium \
                                     --remote-repo-url=https://github.com/ldorg/pyexample3 \
                                     --json-file-output=snyk-sast-results.json \
@@ -155,7 +154,6 @@ spec:
                                 echo "=== Running Snyk Open Source (SCA) scan ==="
                                 snyk test \
                                     --org=${SNYK_ORG} \
-                                    --project-name=TEST_CX_NAME_pyexample3 \
                                     --severity-threshold=medium \
                                     --remote-repo-url=https://github.com/ldorg/pyexample3 \
                                     --json-file-output=snyk-sca-results.json \
