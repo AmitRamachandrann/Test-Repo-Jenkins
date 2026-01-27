@@ -181,10 +181,7 @@ spec:
             archiveArtifacts artifacts: 'coverage.md,coverage-html/**', allowEmptyArchive: false, fingerprint: true
 
             // Archive Snyk security scan results
-            archiveArtifacts artifacts: 'snyk-sca-results.json,snyk-sca-results.sarif', allowEmptyArchive: true, fingerprint: true
-
-            // Archive Snyk security scan results
-            archiveArtifacts artifacts: 'snyk-sast-results.json,snyk-sast-results.sarif', allowEmptyArchive: true, fingerprint: true
+            archiveArtifacts artifacts: '**/*.json,**/*.sarif', allowEmptyArchive: true, fingerprint: true
 
             // Register security scans with CloudBees Unify
             script {
