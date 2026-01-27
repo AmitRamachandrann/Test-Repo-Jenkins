@@ -114,7 +114,6 @@ spec:
 
                                 echo "=== Running Snyk Code (SAST) scan ==="
                                 snyk code test \
-                                    --org="test-org" \
                                     --project-name=TEST_CX_NAME_pyexample3 \
                                     --severity-threshold=medium \
                                     --remote-repo-url=https://github.com/ldorg/pyexample3 \
