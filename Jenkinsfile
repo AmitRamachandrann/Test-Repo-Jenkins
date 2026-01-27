@@ -1,121 +1,223 @@
 pipeline {
-    agent any
+    agent {
+        kubernetes {
+            yaml '''
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    jenkins: agent
+    app: pyexample3-ci
+spec:
+  containers:
+  - name: python
+    image: python:3.13
+    command:
+    - cat
+    tty: true
+    resources:
+      requests:
+        memory: "768Mi"
+        cpu: "500m"
+      limits:
+        memory: "1.5Gi"
+        cpu: "1000m"
+'''
+            defaultContainer 'python'
+        }
+    }
 
     environment {
-        SONAR_HOST = "https://sonarqube.saas-preprod.beescloud.com"
-        PROJECT_KEY = "sarif__bash_test_${env.BUILD_NUMBER}"
-        SCANNER_VERSION = "5.0.1.3006"
-        SCANNER_HOME = "${WORKSPACE}/sonar-scanner-5.0.1.3006"
-        JAVA_HOME = "${WORKSPACE}/jdk17"
-        PATH = "${WORKSPACE}/jdk17/bin:${PATH}"
-        jq = "${WORKSPACE}/bin/jq"
+        POETRY_VERSION = '1.7.1'
+        POETRY_HOME = '/opt/poetry'
+        POETRY_VIRTUALENVS_IN_PROJECT = 'true'
+        POETRY_NO_INTERACTION = '1'
+        PYTHONUNBUFFERED = '1'
+    }
+
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '30', artifactNumToKeepStr: '10'))
+        timeout(time: 30, unit: 'MINUTES')
     }
 
     stages {
-        stage('Install JDK') {
+        stage('Checkout') {
             steps {
-                sh '''
-                  echo "Downloading JDK..."
-                  curl -sLo openjdk.tar.gz https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.14%2B7/OpenJDK17U-jdk_x64_linux_hotspot_17.0.14_7.tar.gz
-                  tar -xzf openjdk.tar.gz
-                  rm -rf jdk17 && mv jdk-17* jdk17
-                  mkdir -p ${WORKSPACE}/bin
-                  if [ ! -f ${WORKSPACE}/bin/jq ]; then
-                      echo "Downloading jq..."
-                      curl -sLo ${WORKSPACE}/bin/jq https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64
-                      chmod +x ${WORKSPACE}/bin/jq
-                  fi
-                '''
-            }
-        }
+                checkout scm
+                script {
+                    // Fix git safe directory issue in containers
+                    sh 'git config --global --add safe.directory "*"'
 
-        stage('Install SonarScanner CLI') {
-            steps {
-                sh """
-                  if [ ! -d "sonar-scanner-${SCANNER_VERSION}-linux" ]; then
-                    echo "Downloading Sonar Scanner CLI..."
-                    curl -sLo scanner-sq.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-${SCANNER_VERSION}.zip
-                    jar -xf scanner-sq.zip
-                    rm scanner-sq.zip
-                  else
-                    echo "SonarScanner already installed."
-                  fi
-                """
-            }
-        }
-
-        stage('SonarQube Analysis') {
-            steps {
-                withCredentials([string(credentialsId: 'sonarqube-preprod-token', variable: 'SONAR_TOKEN')]) {
-                    sh """
-                        chmod +x ${SCANNER_HOME}/bin/sonar-scanner
-                        ${SCANNER_HOME}/bin/sonar-scanner \
-                          -Dsonar.projectKey=$PROJECT_KEY \
-                          -Dsonar.sources=. \
-                          -Dsonar.host.url=$SONAR_HOST \
-                          -Dsonar.login=$SONAR_TOKEN
-                    """
+                    env.GIT_COMMIT_SHORT = sh(
+                        script: "git rev-parse --short HEAD",
+                        returnStdout: true
+                    ).trim()
+                    env.GIT_BRANCH_NAME = sh(
+                        script: "git rev-parse --abbrev-ref HEAD",
+                        returnStdout: true
+                    ).trim()
+                    echo "Building commit ${env.GIT_COMMIT_SHORT} on branch ${env.GIT_BRANCH_NAME}"
                 }
             }
         }
 
-        stage('Wait for Analysis') {
+        stage('Test') {
+            options {
+                timeout(time: 10, unit: 'MINUTES')
+            }
             steps {
-                withCredentials([string(credentialsId: 'sonarqube-preprod-token', variable: 'SONAR_TOKEN')]) {
-                    script {
-                        def reportTask = readFile '.scannerwork/report-task.txt'
-                        def ceTaskUrl = reportTask.readLines()
-                            .find { it.startsWith("ceTaskUrl=") }
-                            .replace("ceTaskUrl=", "")
+                container('python') {
+                    sh '''
+                        echo "=== Installing Poetry ==="
+                        pip install --no-cache-dir poetry==${POETRY_VERSION}
 
-                        echo "Waiting for SonarQube CE task to complete: ${ceTaskUrl}"
+                        echo "=== Poetry version ==="
+                        poetry --version
 
-                        timeout(time: 5, unit: 'MINUTES') {
-                            waitUntil {
-                                def result = sh(
-                                    script: "curl -s -u ${SONAR_TOKEN}: ${ceTaskUrl} | $jq -r '.task.status'",
-                                    returnStdout: true
-                                ).trim()
-                                echo "SonarQube CE task status: ${result}"
-                                return (result == "SUCCESS")
-                            }
+                        echo "=== Installing dependencies ==="
+                        poetry install --with dev --no-root
+
+                        echo "=== Running tests with coverage ==="
+                        poetry run pytest \
+                            --junitxml=test-results.xml \
+                            --cov=app \
+                            --cov-report=markdown:coverage.md \
+                            --cov-report=term \
+                            --cov-report=html:coverage-html \
+                            -v
+
+                        echo "=== Coverage Summary ==="
+                        cat coverage.md
+                    '''
+                }
+            }
+        }
+
+        stage('Snyk SAST') {
+            options {
+                timeout(time: 10, unit: 'MINUTES')
+            }
+            steps {
+                container('python') {
+                    catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                        withCredentials([
+                            string(credentialsId: 'snyk-token', variable: 'SNYK_TOKEN'),
+                            string(credentialsId: 'snyk-org', variable: 'SNYK_ORG')
+                        ]) {
+                            sh '''
+                                echo "=== Installing Snyk CLI ==="
+                                curl -Lo /usr/local/bin/snyk https://downloads.snyk.io/cli/stable/snyk-linux
+                                chmod +x /usr/local/bin/snyk
+
+                                echo "=== Authenticating with Snyk ==="
+                                snyk auth ${SNYK_TOKEN}
+
+                                echo "=== Running Snyk Code (SAST) scan ==="
+                                snyk code test \
+                                    --org=${SNYK_ORG} \
+                                    --project-name=TEST_CX_NAME_pyexample3 \
+                                    --severity-threshold=medium \
+                                    --remote-repo-url=https://github.com/ldorg/pyexample3 \
+                                    --json-file-output=snyk-sast-results.json \
+                                    --sarif-file-output=snyk-sast-results.sarif \
+                                    || echo "Snyk SAST found issues (exit code: $?)"
+
+                                echo "=== SAST Scan Summary ==="
+                                if [ -f snyk-sast-results.json ]; then
+                                    python -c "import json; data=json.load(open('snyk-sast-results.json')); print('SAST scan completed')" || true
+                                fi
+                            '''
                         }
                     }
                 }
             }
         }
 
-        stage('Export Sonar Findings') {
-            steps{
-                exportSonarQubeScan(
-                    component: "",
-                    project: "$PROJECT_KEY",
-                    host: "$SONAR_HOST",
-                    credentialId: "sonarqube-preprod-token"
-                )
+        stage('Snyk SCA') {
+            options {
+                timeout(time: 10, unit: 'MINUTES')
+            }
+            steps {
+                container('python') {
+                    catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                        withCredentials([
+                            string(credentialsId: 'snyk-token', variable: 'SNYK_TOKEN'),
+                            string(credentialsId: 'snyk-org', variable: 'SNYK_ORG')
+                        ]) {
+                            sh '''
+                                echo "=== Re-authenticating with Snyk ==="
+                                snyk auth ${SNYK_TOKEN}
+
+                                echo "=== Installing project dependencies for SCA scan ==="
+                                # Dependencies should already be installed from test stage
+                                poetry install --no-dev || poetry install --without dev
+
+                                echo "=== Running Snyk Open Source (SCA) scan ==="
+                                snyk test \
+                                    --org=${SNYK_ORG} \
+                                    --project-name=TEST_CX_NAME_pyexample3 \
+                                    --severity-threshold=medium \
+                                    --remote-repo-url=https://github.com/ldorg/pyexample3 \
+                                    --json-file-output=snyk-sca-results.json \
+                                    --sarif-file-output=snyk-sca-results.sarif \
+                                    || echo "Snyk SCA found vulnerabilities (exit code: $?)"
+
+                                echo "=== SCA Scan Summary ==="
+                                if [ -f snyk-sca-results.json ]; then
+                                    python -c "import json; data=json.load(open('snyk-sca-results.json')); print('SCA scan completed')" || true
+                                fi
+                            '''
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            // Publish JUnit test results (automatically registers with CloudBees Unify)
+            junit testResults: 'test-results.xml', allowEmptyResults: false
+
+            // Archive coverage reports
+            archiveArtifacts artifacts: 'coverage.md,coverage-html/**', allowEmptyArchive: false, fingerprint: true
+
+            // Archive Snyk security scan results
+            archiveArtifacts artifacts: 'snyk-*.json,snyk-*.sarif', allowEmptyArchive: true, fingerprint: true
+
+            // Register security scans with CloudBees Unify
+            script {
+                if (fileExists('snyk-sast-results.sarif')) {
+                    registerSecurityScan(
+                        artifacts: 'snyk-sast-results.sarif',
+                        format: 'sarif',
+                        archive: true
+                    )
+                }
+                if (fileExists('snyk-sca-results.sarif')) {
+                    registerSecurityScan(
+                        artifacts: 'snyk-sca-results.sarif',
+                        format: 'sarif',
+                        archive: true
+                    )
+                }
             }
         }
 
-        // stage('Generate SARIF') {
-        //     steps {
-        //         withCredentials([string(credentialsId: 'sonarqube-preprod-token', variable: 'SONAR_TOKEN')]) {
-        //             sh '''
-        //                 chmod +x ./sonar_to_sariff.sh
-        //                 ./sonar_to_sariff.sh get_sarif_output \
-        //                 "$SONAR_HOST" \
-        //                 "$SONAR_TOKEN" \
-        //                 "$PROJECT_KEY" \
-        //                 "$WORKSPACE" \
-        //                 "$SCANNER_VERSION" > sonar.sarif.json
-        //             '''
-        //         }
-        //     }
-        // }
+        success {
+            echo "✓ Pipeline completed successfully!"
+            echo "  Commit: ${env.GIT_COMMIT_SHORT}"
+            echo "  Branch: ${env.GIT_BRANCH_NAME}"
+        }
 
-        // stage('Archive SARIF Artifact') {
-        //     steps {
-        //         archiveArtifacts artifacts: 'sonar.sarif.json', fingerprint: true
-        //     }
-        // }
+        unstable {
+            echo "⚠ Pipeline completed with warnings"
+            echo "  This may indicate security findings or test failures that didn't fail the build"
+        }
+
+        failure {
+            echo "✗ Pipeline failed!"
+            echo "  Check the logs above for error details"
+        }
     }
 }
