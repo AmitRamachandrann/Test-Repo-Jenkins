@@ -125,6 +125,10 @@ spec:
                                 if [ -f snyk-sast-results.json ]; then
                                     python -c "import json; data=json.load(open('snyk-sast-results.json')); print('SAST scan completed')" || true
                                 fi
+                                
+                                echo "=== Checking for output files ==="
+                                ls -lah snyk-sast-results.* 2>/dev/null || echo "No SAST result files found"
+                                echo "Working directory: $(pwd)"
                             '''
                         }
                     }
@@ -164,6 +168,10 @@ spec:
                                 if [ -f snyk-sca-results.json ]; then
                                     python -c "import json; data=json.load(open('snyk-sca-results.json')); print('SCA scan completed')" || true
                                 fi
+                                
+                                echo "=== Checking for output files ==="
+                                ls -lah snyk-sca-results.* 2>/dev/null || echo "No SCA result files found"
+                                echo "Working directory: $(pwd)"
                             '''
                         }
                     }
@@ -184,29 +192,29 @@ spec:
             archiveArtifacts artifacts: '**/*.json', allowEmptyArchive: true, fingerprint: true
 
             // Register security scans with CloudBees Unify (will archive SARIF files)
-            script {
-                if (fileExists('snyk-sast-results.sarif')) {
-                    registerSecurityScan(
-                        artifacts: 'snyk-sast-results.sarif',
-                        format: 'sarif',
-                        archive: true
-                    )
-                    echo "✓ Registered SAST results with CloudBees Unify"
-                } else {
-                    echo "⚠ snyk-sast-results.sarif not found, skipping registration"
-                }
+            // script {
+            //     if (fileExists('snyk-sast-results.sarif')) {
+            //         registerSecurityScan(
+            //             artifacts: 'snyk-sast-results.sarif',
+            //             format: 'sarif',
+            //             archive: true
+            //         )
+            //         echo "✓ Registered SAST results with CloudBees Unify"
+            //     } else {
+            //         echo "⚠ snyk-sast-results.sarif not found, skipping registration"
+            //     }
                 
-                if (fileExists('snyk-sca-results.sarif')) {
-                    registerSecurityScan(
-                        artifacts: 'snyk-sca-results.sarif',
-                        format: 'sarif',
-                        archive: true
-                    )
-                    echo "✓ Registered SCA results with CloudBees Unify"
-                } else {
-                    echo "⚠ snyk-sca-results.sarif not found, skipping registration"
-                }
-            }
+            //     if (fileExists('snyk-sca-results.sarif')) {
+            //         registerSecurityScan(
+            //             artifacts: 'snyk-sca-results.sarif',
+            //             format: 'sarif',
+            //             archive: true
+            //         )
+            //         echo "✓ Registered SCA results with CloudBees Unify"
+            //     } else {
+            //         echo "⚠ snyk-sca-results.sarif not found, skipping registration"
+            //     }
+            // }
         }
 
         success {
