@@ -189,7 +189,7 @@ spec:
             archiveArtifacts artifacts: 'coverage.md,coverage-html/**', allowEmptyArchive: false, fingerprint: true
 
             // Archive Snyk scan results
-            archiveArtifacts artifacts: '**/*.json,**/*.sarif', allowEmptyArchive: true, fingerprint: true
+            archiveArtifacts artifacts: '**/*.json', allowEmptyArchive: true, fingerprint: true
 
             // Register security scans with CloudBees Unify
             script {
@@ -197,7 +197,7 @@ spec:
                     registerSecurityScan(
                         artifacts: 'snyk-sast-results.sarif',
                         format: 'sarif',
-                        archive: false
+                        archive: true
                     )
                     echo "✓ Registered SAST results with CloudBees Unify"
                 } else {
@@ -208,7 +208,7 @@ spec:
                     registerSecurityScan(
                         artifacts: 'snyk-sca-results.sarif',
                         format: 'sarif',
-                        archive: false
+                        archive: true
                     )
                     echo "✓ Registered SCA results with CloudBees Unify"
                 } else {
