@@ -186,7 +186,7 @@ spec:
             junit testResults: 'test-results.xml', allowEmptyResults: false
 
             // Archive coverage reports
-            archiveArtifacts artifacts: 'coverage.md,coverage-html/**', allowEmptyArchive: false, fingerprint: true
+            // archiveArtifacts artifacts: 'coverage.md,coverage-html/**', allowEmptyArchive: false, fingerprint: true
 
             // Archive Snyk scan results
             archiveArtifacts artifacts: '**/*.sarif,**/*.json', allowEmptyArchive: true, fingerprint: true
