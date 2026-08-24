@@ -1,0 +1,81 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "NexusIQ",
+          "informationUri": "https://www.sonatype.com/products/sonatype-lifecycle",
+          "version": "1.0.0",
+          "organization": "Sonatype",
+          "fullDescription": {
+            "text": "Component/OSS risk evaluation via Nexus IQ Server"
+          }
+        }
+      },
+      "results": [
+        {
+          "ruleId": "nexus-iq-critical-components",
+          "level": "error",
+          "message": {
+            "text": "16 critical-risk components found. View details at http://13.212.100.205:8070/ui/links/application/fitness-tracker/report/69eaeb1c31c748de93436b63a83a0cd4"
+          },
+          "locations": [
+            { "physicalLocation": { "artifactLocation": { "uri": "pom.xml" } } }
+          ],
+          "properties": {
+            "severity": "critical",
+            "issue_type": "component",
+            "count": 16,
+            "tags": ["security", "component", "nexus-iq"]
+          }
+        }
+        ,
+        {
+          "ruleId": "nexus-iq-severe-components",
+          "level": "error",
+          "message": {
+            "text": "4 severe-risk components found. View details at http://13.212.100.205:8070/ui/links/application/fitness-tracker/report/69eaeb1c31c748de93436b63a83a0cd4"
+          },
+          "locations": [
+            { "physicalLocation": { "artifactLocation": { "uri": "pom.xml" } } }
+          ],
+          "properties": {
+            "severity": "high",
+            "issue_type": "component",
+            "count": 4,
+            "tags": ["security", "component", "nexus-iq"]
+          }
+        }
+        ,
+        {
+          "ruleId": "nexus-iq-moderate-components",
+          "level": "warning",
+          "message": {
+            "text": "11 moderate-risk components found. View details at http://13.212.100.205:8070/ui/links/application/fitness-tracker/report/69eaeb1c31c748de93436b63a83a0cd4"
+          },
+          "locations": [
+            { "physicalLocation": { "artifactLocation": { "uri": "pom.xml" } } }
+          ],
+          "properties": {
+            "severity": "moderate",
+            "issue_type": "component",
+            "count": 11,
+            "tags": ["security", "component", "nexus-iq"]
+          }
+        }
+      ],
+      "properties": {
+        "gated": false,
+        "policyAction": "Failure",
+        "affectedComponents": 31,
+        "criticalComponents": 16,
+        "severeComponents": 4,
+        "moderateComponents": 11,
+        "reportUrl": "http://13.212.100.205:8070/ui/links/application/fitness-tracker/report/69eaeb1c31c748de93436b63a83a0cd4"
+      },
+      "columnKind": "utf16CodeUnits"
+    }
+  ]
+}
