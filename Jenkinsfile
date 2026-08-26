@@ -21,13 +21,4 @@ pipeline {
             }
         }
     }
-
-    post {
-        always {
-            echo 'Pipeline completed.'
-        }
-        failure {
-            echo 'Build or tests failed!'
-        }
-    }
 }
